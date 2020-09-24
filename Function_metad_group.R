@@ -1,28 +1,13 @@
-#####################################
-
-# Estimate metacognitive efficiency (Mratio) at the group level
+# Copyright (c) 2017 Stephen Fleming
 #
-# Adaptation in R of matlab function 'fit_meta_d_mcmc_group.m'
-# by Steve Fleming 
-# for more details see Fleming (2017). HMeta-d: hierarchical Bayesian 
-# estimation of metacognitive efficiency from confidence ratings. 
+# adapt code from Fleming to use a fully Bayesian approach
+# d1 and c1 are not estimated using the frequentist type 1 
+# method but using also a Bayesian approach.
+# Also added the possibility to fix the initial state for 
+# the MCMC chain to get reproducible results.
+# More variables are also recorded to be analyzed at the
+# end: individual Mratio and individual dprime
 #
-# you need to install the following packing before using the function:
-# tidyverse
-# magrittr
-# reshape2
-# rjags
-# coda
-# lattice
-# broom
-# ggpubr
-# ggmcmc
-#
-# nR_S1 and nR_S2 should be two vectors
-# model output is a large mcmc list and two vectors for d1 and c1
-#
-# AM 2018
-
 #####################################
 
 ## Packages
@@ -43,72 +28,32 @@ metad_group <- function (nR_S1, nR_S2, inits, nbchains=3) {
   nratings <- nrow(nR_S1[[1]])/2
   nsubj <- ncol(nR_S1[[1]])
   nTask <- length(nR_S1)
-
-    
-  # Adjust to ensure non-zero counts for type 1 d' point estimate
-  d1 <- data.frame()
-  c1 <- data.frame()
-    
-    for (n in 1:(nsubj)) {
-        
-      #adj_f <- 1/((nratings)*2)
-      adj_f <- 1e-6
-      nR_S1_adj = nR_S1[[1]][,n] + adj_f
-      nR_S2_adj = nR_S2[[1]][,n] + adj_f
-        
-      ratingHR <- matrix()
-      ratingFAR <- matrix()
-        
-      for (c in 2:(nratings*2)) {
-        ratingHR[c-1] <- sum(nR_S2_adj[c:length(nR_S2_adj)]) / sum(nR_S2_adj)
-        ratingFAR[c-1] <- sum(nR_S1_adj[c:length(nR_S1_adj)]) / sum(nR_S1_adj)
-          
-      }
-        
-      t1_index <- nratings
-      a <- qnorm(ratingHR[(t1_index)]) - qnorm(ratingFAR[(t1_index)])
-      d1 %<>%
-        rbind(a)
-      a <- -0.5 * (qnorm(ratingHR[(t1_index)]) + qnorm(ratingFAR[(t1_index)]))
-      c1 %<>%
-        rbind(a)
-    }
-
-  d1 <- c(d1[1:nsubj,1])
-  c1 <- c(c1[1:nsubj,1])
-    
-  # Data preparation for model
-  counts <- t(nR_S1[[1]]) %>% 
-    cbind(t(nR_S2[[1]]))
   
-  d1 <<- as.matrix(d1)
-  c1 <<- as.matrix(c1)
-
-    Tol <- 1e-05
-    
-    
-    # comment d1 and c1 for a Bayesian estimation of these parameters
-    data <- list(
-      #d1 = d1,
-      #c1 = c1,
-      nsubj = nsubj,
-      counts = counts,
-      nratings = nratings,
-      Tol = Tol
-    )
-    
-    ## Model using JAGS
-    # Create and update model
-    model <- jags.model(file = 'code-flemming/R/Bayes_metad_group_R.txt', data = data,
-                        n.chains = nbchains, quiet=FALSE)
-    update(model, n.iter=1000) # burn-in
-    
-    # Sampling
-    output <- coda.samples( 
-      model          = model,
-      variable.names = c("d1","mu_d1","mu_c2","sigma_c2","mu_logMratio", "sigma_logMratio", "Mratio", "sigma_delta","epsilon_logMratio","cS1","cS2","c1"),
-      n.iter         = 10000,
-      thin           = 1 )
-    
+  Tol <- 1e-05
+  
+  
+  # comment d1 and c1 for a Bayesian estimation of these parameters
+  data <- list(
+    #d1 = d1,
+    #c1 = c1,
+    nsubj = nsubj,
+    counts = counts,
+    nratings = nratings,
+    Tol = Tol
+  )
+  
+  ## Model using JAGS
+  # Create and update model
+  model <- jags.model(file = 'code-flemming/R/Bayes_metad_group_R.txt', data = data,
+                      n.chains = nbchains, quiet=FALSE)
+  update(model, n.iter=1000) # burn-in
+  
+  # Sampling
+  output <- coda.samples( 
+    model          = model,
+    variable.names = c("d1","mu_d1","mu_c2","sigma_c2","mu_logMratio", "sigma_logMratio", "Mratio", "sigma_delta","epsilon_logMratio","cS1","cS2","c1"),
+    n.iter         = 10000,
+    thin           = 1 )
+  
   return(output)
 }
