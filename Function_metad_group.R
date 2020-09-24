@@ -44,7 +44,7 @@ metad_group <- function (nR_S1, nR_S2, inits, nbchains=3) {
   
   ## Model using JAGS
   # Create and update model
-  model <- jags.model(file = 'code-flemming/R/Bayes_metad_group_R.txt', data = data,
+  model <- jags.model(file = 'Bayes_metad_group_R.txt', data = data,
                       n.chains = nbchains, quiet=FALSE)
   update(model, n.iter=1000) # burn-in
   
